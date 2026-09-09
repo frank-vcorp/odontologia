@@ -60,7 +60,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
-        <Link href="/agenda" className="btn btn-primary">
+        <Link href="/agenda?nueva=1" className="btn btn-primary">
           Nueva cita
         </Link>
         <Link href="/pacientes" className="btn btn-secondary">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Option = { id: string; label: string; sublabel?: string };
 
@@ -24,20 +24,28 @@ export function EntitySearchSelect({
   const [query, setQuery] = useState("");
   const [options, setOptions] = useState<Option[]>([]);
   const [loading, setLoading] = useState(false);
+  const mapItemRef = useRef(mapItem);
+
+  useEffect(() => {
+    mapItemRef.current = mapItem;
+  }, [mapItem]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
       setLoading(true);
-      const url = query ? `${fetchUrl}?q=${encodeURIComponent(query)}` : fetchUrl;
-      const res = await fetch(url);
-      setLoading(false);
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = (data.patients ?? data.services ?? data.items ?? []) as Record<string, unknown>[];
-      setOptions(list.map(mapItem));
+      try {
+        const url = query ? `${fetchUrl}?q=${encodeURIComponent(query)}` : fetchUrl;
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        const list = (data.patients ?? data.services ?? data.items ?? []) as Record<string, unknown>[];
+        setOptions(list.map((item) => mapItemRef.current(item)));
+      } finally {
+        setLoading(false);
+      }
     }, 250);
     return () => clearTimeout(timer);
-  }, [query, fetchUrl, mapItem]);
+  }, [query, fetchUrl]);
 
   const selected = options.find((o) => o.id === value);
 

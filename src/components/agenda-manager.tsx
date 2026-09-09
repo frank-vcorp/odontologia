@@ -1,13 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppointmentForm, type AppointmentFormValues } from "@/components/appointment-form";
 import {
+  addClinicDays,
   addDays,
   CLINIC_TIMEZONE,
+  clinicDayAtHour,
+  endOfDayClinic,
   formatInClinicTimezone,
-  startOfWeek,
+  parseClinicDateTime,
+  startOfDayClinic,
+  startOfWeekClinic,
   toClinicDateInput,
   toClinicTimeInput,
 } from "@/shared/datetime";
@@ -41,58 +47,100 @@ function statusLabel(status: Appointment["operationalStatus"]) {
   return "Cancelada";
 }
 
+function defaultFormInitial(): Partial<AppointmentFormValues> {
+  const now = new Date();
+  return {
+    date: toClinicDateInput(now),
+    time: toClinicTimeInput(now),
+    durationMinutes: 60,
+  };
+}
+
 export function AgendaManager() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const formPanelRef = useRef<HTMLDivElement>(null);
+
+  const [mounted, setMounted] = useState(false);
   const [view, setView] = useState<"week" | "day">("week");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Appointment | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [formInitial, setFormInitial] = useState<Partial<AppointmentFormValues>>({});
+  const [formInitial, setFormInitial] = useState<Partial<AppointmentFormValues>>(defaultFormInitial);
+  const [formKey, setFormKey] = useState(0);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [rescheduleMode, setRescheduleMode] = useState(false);
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const range = useMemo(() => {
+    if (!mounted) return null;
+
     if (view === "day") {
-      const start = new Date(anchorDate);
-      start.setHours(0, 0, 0, 0);
-      const end = addDays(start, 1);
+      const start = startOfDayClinic(anchorDate);
+      const end = endOfDayClinic(anchorDate);
       return { start, end, days: [start] };
     }
-    const start = startOfWeek(anchorDate);
-    const end = addDays(start, 7);
-    const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+
+    const start = startOfWeekClinic(anchorDate);
+    const startKey = toClinicDateInput(start);
+    const days = Array.from({ length: 7 }, (_, index) =>
+      parseClinicDateTime(addClinicDays(startKey, index), "12:00"),
+    );
+    const end = parseClinicDateTime(addClinicDays(startKey, 7), "00:00");
     return { start, end, days };
-  }, [anchorDate, view]);
+  }, [anchorDate, mounted, view]);
 
   const load = useCallback(async () => {
+    if (!range) return;
     setLoading(true);
-    const res = await fetch(
-      `/api/appointments?from=${encodeURIComponent(range.start.toISOString())}&to=${encodeURIComponent(range.end.toISOString())}`,
-    );
-    setLoading(false);
-    if (!res.ok) return;
-    const data = await res.json();
-    setAppointments(data.appointments);
-  }, [range.end, range.start]);
+    try {
+      const res = await fetch(
+        `/api/appointments?from=${encodeURIComponent(range.start.toISOString())}&to=${encodeURIComponent(range.end.toISOString())}`,
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      setAppointments(data.appointments ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, [range]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  const openForm = useCallback((initial: Partial<AppointmentFormValues>, reschedule = false) => {
+    setFormInitial(initial);
+    setFormKey((value) => value + 1);
+    setFormError("");
+    setRescheduleMode(reschedule);
+    setShowForm(true);
+    setSelected(null);
+    requestAnimationFrame(() => {
+      formPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    if (searchParams.get("nueva") === "1") {
+      openForm(defaultFormInitial());
+      router.replace("/agenda");
+    }
+  }, [mounted, openForm, router, searchParams]);
+
   function openNewSlot(day: Date, hour: number) {
-    const d = new Date(day);
-    d.setHours(hour, 0, 0, 0);
-    setFormInitial({
-      date: toClinicDateInput(d),
+    openForm({
+      date: toClinicDateInput(day),
       time: `${String(hour).padStart(2, "0")}:00`,
       durationMinutes: 60,
     });
-    setFormError("");
-    setRescheduleMode(false);
-    setShowForm(true);
-    setSelected(null);
   }
 
   async function saveAppointment(values: AppointmentFormValues) {
@@ -104,24 +152,27 @@ export function AgendaManager() {
       notes: values.notes || null,
     };
 
-    const res = await fetch(
-      rescheduleMode && selected ? `/api/appointments/${selected.id}` : "/api/appointments",
-      {
-        method: rescheduleMode && selected ? "PATCH" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      },
-    );
-    setSaving(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setFormError(typeof data.error === "string" ? data.error : "No se pudo guardar");
-      return;
+    try {
+      const res = await fetch(
+        rescheduleMode && selected ? `/api/appointments/${selected.id}` : "/api/appointments",
+        {
+          method: rescheduleMode && selected ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setFormError(typeof data.error === "string" ? data.error : "No se pudo guardar");
+        return;
+      }
+      setShowForm(false);
+      setRescheduleMode(false);
+      setSelected(null);
+      await load();
+    } finally {
+      setSaving(false);
     }
-    setShowForm(false);
-    setRescheduleMode(false);
-    setSelected(null);
-    await load();
   }
 
   async function cancelSelected() {
@@ -157,11 +208,43 @@ export function AgendaManager() {
 
   function appointmentsForDay(day: Date) {
     const key = toClinicDateInput(day);
-    return appointments.filter((a) => toClinicDateInput(a.startsAt) === key);
+    return appointments.filter((appointment) => toClinicDateInput(appointment.startsAt) === key);
+  }
+
+  if (!mounted || !range) {
+    return <p className="text-[var(--muted)]">Cargando agenda…</p>;
   }
 
   return (
     <div className="space-y-4">
+      {showForm && (
+        <div ref={formPanelRef} className="form-overlay" role="dialog" aria-modal="true" aria-label="Nueva cita">
+          <button
+            type="button"
+            className="form-overlay-backdrop"
+            aria-label="Cerrar formulario"
+            onClick={() => {
+              setShowForm(false);
+              setRescheduleMode(false);
+            }}
+          />
+          <div className="form-overlay-panel">
+            <AppointmentForm
+              key={formKey}
+              initial={formInitial}
+              saving={saving}
+              error={formError}
+              submitLabel={rescheduleMode ? "Reagendar cita" : "Guardar cita"}
+              onCancel={() => {
+                setShowForm(false);
+                setRescheduleMode(false);
+              }}
+              onSubmit={saveAppointment}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2 items-center justify-between">
         <div className="flex flex-wrap gap-2">
           <button type="button" className={`btn ${view === "week" ? "btn-primary" : "btn-secondary"}`} onClick={() => setView("week")}>
@@ -186,28 +269,21 @@ export function AgendaManager() {
           </button>
           <span className="text-sm font-medium">
             {formatInClinicTimezone(range.start, { dateStyle: "medium", timeZone: CLINIC_TIMEZONE })}
-            {view === "week" ? ` — ${formatInClinicTimezone(addDays(range.start, 6), { dateStyle: "medium" })}` : ""}
+            {view === "week"
+              ? ` — ${formatInClinicTimezone(parseClinicDateTime(addClinicDays(toClinicDateInput(range.start), 6), "12:00"), { dateStyle: "medium" })}`
+              : ""}
           </span>
           <button type="button" className="btn btn-ghost" onClick={() => setAnchorDate(addDays(anchorDate, view === "week" ? 7 : 1))}>
             →
           </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              setFormInitial({ date: toClinicDateInput(new Date()), time: toClinicTimeInput(new Date()), durationMinutes: 60 });
-              setShowForm(true);
-              setRescheduleMode(false);
-              setSelected(null);
-            }}
-          >
+          <button type="button" className="btn btn-primary" onClick={() => openForm(defaultFormInitial())}>
             Nueva cita
           </button>
         </div>
       </div>
 
       {loading ? (
-        <p className="text-[var(--muted)]">Cargando agenda…</p>
+        <p className="text-[var(--muted)]">Cargando citas…</p>
       ) : (
         <div className="panel overflow-x-auto">
           <div
@@ -216,7 +292,7 @@ export function AgendaManager() {
           >
             <div className="panel-header" />
             {range.days.map((day) => (
-              <div key={day.toISOString()} className="panel-header text-center">
+              <div key={toClinicDateInput(day)} className="panel-header text-center">
                 {formatInClinicTimezone(day, { weekday: "short", day: "numeric", month: "short" })}
               </div>
             ))}
@@ -227,53 +303,50 @@ export function AgendaManager() {
                   {String(hour).padStart(2, "0")}:00
                 </div>
                 {range.days.map((day) => {
-                  const dayAppointments = appointmentsForDay(day).filter((a) => {
-                    const h = Number.parseInt(toClinicTimeInput(a.startsAt).split(":")[0] ?? "0", 10);
-                    return h === hour;
+                  const dayAppointments = appointmentsForDay(day).filter((appointment) => {
+                    const slotHour = Number.parseInt(toClinicTimeInput(appointment.startsAt).split(":")[0] ?? "0", 10);
+                    return slotHour === hour;
                   });
+
                   return (
-                    <button
-                      key={`${day.toISOString()}-${hour}`}
-                      type="button"
-                      className="min-h-16 border-b border-r border-[var(--border-subtle)] p-1 text-left align-top hover:bg-[var(--surface-2)]"
-                      onClick={() => openNewSlot(day, hour)}
+                    <div
+                      key={`${toClinicDateInput(day)}-${hour}`}
+                      role="button"
+                      tabIndex={0}
+                      className="min-h-16 border-b border-r border-[var(--border-subtle)] p-1 text-left align-top hover:bg-[var(--surface-2)] cursor-pointer"
+                      onClick={() => openNewSlot(clinicDayAtHour(day, hour), hour)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openNewSlot(clinicDayAtHour(day, hour), hour);
+                        }
+                      }}
                     >
-                      {dayAppointments.map((a) => (
-                        <div
-                          key={a.id}
-                          className="mb-1 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 text-xs shadow-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelected(a);
+                      {dayAppointments.map((appointment) => (
+                        <button
+                          key={appointment.id}
+                          type="button"
+                          className="mb-1 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 text-left text-xs shadow-sm hover:border-[var(--accent-brand)]"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelected(appointment);
                             setShowForm(false);
                           }}
                         >
-                          <div className="font-semibold truncate">{a.patientName}</div>
-                          <div className="text-[var(--muted)] truncate">{a.serviceName}</div>
-                          <span className={statusBadge(a.operationalStatus)}>{statusLabel(a.operationalStatus)}</span>
-                        </div>
+                          <div className="font-semibold truncate">{appointment.patientName}</div>
+                          <div className="text-[var(--muted)] truncate">{appointment.serviceName}</div>
+                          <span className={statusBadge(appointment.operationalStatus)}>
+                            {statusLabel(appointment.operationalStatus)}
+                          </span>
+                        </button>
                       ))}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
             ))}
           </div>
         </div>
-      )}
-
-      {showForm && (
-        <AppointmentForm
-          initial={formInitial}
-          saving={saving}
-          error={formError}
-          submitLabel={rescheduleMode ? "Reagendar cita" : "Guardar cita"}
-          onCancel={() => {
-            setShowForm(false);
-            setRescheduleMode(false);
-          }}
-          onSubmit={saveAppointment}
-        />
       )}
 
       {selected && !showForm && (
@@ -305,13 +378,15 @@ export function AgendaManager() {
                     type="button"
                     className="btn btn-secondary"
                     onClick={() => {
-                      setFormInitial({
-                        date: toClinicDateInput(selected.startsAt),
-                        time: toClinicTimeInput(selected.startsAt),
-                        durationMinutes: selected.durationMinutes,
-                      });
-                      setRescheduleMode(true);
-                      setShowForm(true);
+                      openForm(
+                        {
+                          date: toClinicDateInput(selected.startsAt),
+                          time: toClinicTimeInput(selected.startsAt),
+                          durationMinutes: selected.durationMinutes,
+                        },
+                        true,
+                      );
+                      setSelected(selected);
                     }}
                   >
                     Reagendar

@@ -39,6 +39,7 @@ export function AppointmentForm({
   submitLabel?: string;
 }) {
   const [form, setForm] = useState({ ...emptyValues, ...initial });
+  const [localError, setLocalError] = useState("");
   const [quickPatient, setQuickPatient] = useState({ fullName: "", phone: "" });
   const [quickService, setQuickService] = useState({ name: "", price: "" });
   const [treatments, setTreatments] = useState<{ id: string; serviceName: string }[]>([]);
@@ -87,6 +88,15 @@ export function AppointmentForm({
       className="form-panel"
       onSubmit={(e) => {
         e.preventDefault();
+        if (!form.patientId) {
+          setLocalError("Selecciona un paciente de la lista o usa alta rápida.");
+          return;
+        }
+        if (!form.serviceId) {
+          setLocalError("Selecciona un servicio de la lista o usa alta rápida.");
+          return;
+        }
+        setLocalError("");
         void onSubmit(form);
       }}
     >
@@ -94,7 +104,7 @@ export function AppointmentForm({
         <h2 className="form-panel-title">Nueva cita</h2>
       </div>
       <div className="form-panel-body space-y-4">
-        {error && <p className="text-[var(--danger)] text-sm">{error}</p>}
+        {(localError || error) && <p className="text-[var(--danger)] text-sm">{localError || error}</p>}
 
         <EntitySearchSelect
           label="Paciente"

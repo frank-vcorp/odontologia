@@ -747,6 +747,34 @@ button {
   background: var(--surface-2);
 }
 
+.form-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1rem;
+  padding-top: max(1rem, env(safe-area-inset-top));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  overflow-y: auto;
+}
+
+.form-overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: rgb(10 31 68 / 0.45);
+  cursor: pointer;
+}
+
+.form-overlay-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 42rem);
+  margin: auto 0;
+}
+
 .form-grid {
   display: grid;
   gap: 0.9rem;

@@ -64,3 +64,52 @@ export function addDays(date: Date, days: number): Date {
   d.setDate(d.getDate() + days);
   return d;
 }
+
+const CLINIC_WEEKDAY: Record<string, number> = {
+  lun: 0,
+  mar: 1,
+  mié: 2,
+  mie: 2,
+  jue: 3,
+  vie: 4,
+  sáb: 5,
+  sab: 5,
+  dom: 6,
+};
+
+function normalizeWeekdayToken(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .slice(0, 3);
+}
+
+/** 0 = lunes … 6 = domingo, según zona del consultorio. */
+export function clinicWeekdayIndex(date: Date): number {
+  const token = normalizeWeekdayToken(formatInClinicTimezone(date, { weekday: "short" }));
+  return CLINIC_WEEKDAY[token] ?? 0;
+}
+
+export function addClinicDays(dateStr: string, days: number): string {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return toClinicDateInput(new Date(Date.UTC(year, month - 1, day + days, 12, 0, 0)));
+}
+
+export function startOfDayClinic(date: Date): Date {
+  return parseClinicDateTime(toClinicDateInput(date), "00:00");
+}
+
+export function endOfDayClinic(date: Date): Date {
+  return parseClinicDateTime(addClinicDays(toClinicDateInput(date), 1), "00:00");
+}
+
+export function startOfWeekClinic(date: Date): Date {
+  const dateKey = toClinicDateInput(date);
+  const weekday = clinicWeekdayIndex(parseClinicDateTime(dateKey, "12:00"));
+  return parseClinicDateTime(addClinicDays(dateKey, -weekday), "00:00");
+}
+
+export function clinicDayAtHour(date: Date, hour: number): Date {
+  return parseClinicDateTime(toClinicDateInput(date), `${String(hour).padStart(2, "0")}:00`);
+}
