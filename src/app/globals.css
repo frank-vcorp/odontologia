@@ -802,6 +802,40 @@ button {
   color: var(--text);
 }
 
+.calendar-slot-empty {
+  display: block;
+  width: 100%;
+  min-height: 3.5rem;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.calendar-slot-empty:hover {
+  background: rgb(10 31 68 / 0.04);
+}
+
+.calendar-appointment {
+  display: block;
+  width: 100%;
+  margin-bottom: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 0.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.calendar-appointment:hover {
+  border-color: var(--accent-brand);
+  background: var(--accent-brand-soft);
+}
+
 .form-grid {
   display: grid;
   gap: 0.9rem;

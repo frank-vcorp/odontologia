@@ -136,11 +136,18 @@ export function AgendaManager() {
   }, [mounted, openForm, router, searchParams]);
 
   function openNewSlot(day: Date, hour: number) {
+    setSelected(null);
     openForm({
       date: toClinicDateInput(day),
       time: `${String(hour).padStart(2, "0")}:00`,
       durationMinutes: 60,
     });
+  }
+
+  function openAppointmentDetail(appointment: Appointment) {
+    setShowForm(false);
+    setRescheduleMode(false);
+    setSelected(appointment);
   }
 
   async function saveAppointment(values: AppointmentFormValues) {
@@ -311,35 +318,32 @@ export function AgendaManager() {
                   return (
                     <div
                       key={`${toClinicDateInput(day)}-${hour}`}
-                      role="button"
-                      tabIndex={0}
-                      className="min-h-16 border-b border-r border-[var(--border-subtle)] p-1 text-left align-top hover:bg-[var(--surface-2)] cursor-pointer"
-                      onClick={() => openNewSlot(clinicDayAtHour(day, hour), hour)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          openNewSlot(clinicDayAtHour(day, hour), hour);
-                        }
-                      }}
+                      className="min-h-16 border-b border-r border-[var(--border-subtle)] p-1 text-left align-top hover:bg-[var(--surface-2)]"
                     >
-                      {dayAppointments.map((appointment) => (
+                      {dayAppointments.length === 0 ? (
                         <button
-                          key={appointment.id}
                           type="button"
-                          className="mb-1 w-full rounded-md border border-[var(--border)] bg-[var(--surface)] p-2 text-left text-xs shadow-sm hover:border-[var(--accent-brand)]"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSelected(appointment);
-                            setShowForm(false);
-                          }}
-                        >
-                          <div className="font-semibold truncate">{appointment.patientName}</div>
-                          <div className="text-[var(--muted)] truncate">{appointment.serviceName}</div>
-                          <span className={statusBadge(appointment.operationalStatus)}>
-                            {statusLabel(appointment.operationalStatus)}
-                          </span>
-                        </button>
-                      ))}
+                          className="calendar-slot-empty"
+                          aria-label={`Nueva cita ${formatInClinicTimezone(clinicDayAtHour(day, hour), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}`}
+                          onClick={() => openNewSlot(clinicDayAtHour(day, hour), hour)}
+                        />
+                      ) : (
+                        dayAppointments.map((appointment) => (
+                          <button
+                            key={appointment.id}
+                            type="button"
+                            data-calendar-appointment=""
+                            className="calendar-appointment"
+                            onClick={() => openAppointmentDetail(appointment)}
+                          >
+                            <div className="font-semibold truncate">{appointment.patientName}</div>
+                            <div className="text-[var(--muted)] truncate">{appointment.serviceName}</div>
+                            <span className={statusBadge(appointment.operationalStatus)}>
+                              {statusLabel(appointment.operationalStatus)}
+                            </span>
+                          </button>
+                        ))
+                      )}
                     </div>
                   );
                 })}
