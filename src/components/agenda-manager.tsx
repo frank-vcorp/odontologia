@@ -350,60 +350,100 @@ export function AgendaManager() {
       )}
 
       {selected && !showForm && (
-        <div className="card space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold m-0">{selected.patientName}</h2>
-              <p className="text-sm text-[var(--muted)] m-0">{selected.patientPhone}</p>
-              <p className="text-sm mt-2">{selected.serviceName}</p>
-              <p className="text-sm text-[var(--muted)]">
-                {formatInClinicTimezone(selected.startsAt, {
-                  dateStyle: "full",
-                  timeStyle: "short",
-                })}{" "}
-                · {selected.durationMinutes} min
-              </p>
-              {selected.notes && <p className="text-sm mt-2">{selected.notes}</p>}
-              <span className={`${statusBadge(selected.operationalStatus)} mt-2 inline-block`}>
-                {statusLabel(selected.operationalStatus)}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {!selected.hasConsultation && selected.operationalStatus !== "cancelada" && (
-                <>
-                  <button type="button" className="btn btn-primary" disabled={saving} onClick={() => void createConsultationFromSelected()}>
-                    Crear consulta
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      openForm(
-                        {
-                          date: toClinicDateInput(selected.startsAt),
-                          time: toClinicTimeInput(selected.startsAt),
-                          durationMinutes: selected.durationMinutes,
-                        },
-                        true,
-                      );
-                      setSelected(selected);
-                    }}
-                  >
-                    Reagendar
-                  </button>
-                  <button type="button" className="btn btn-danger" onClick={() => void cancelSelected()}>
-                    Cancelar cita
-                  </button>
-                </>
-              )}
-              {selected.hasConsultation && selected.consultationId && (
-                <Link href={`/consultas/${selected.consultationId}`} className="btn btn-secondary">
-                  Ver consulta
-                </Link>
-              )}
-              <button type="button" className="btn btn-ghost" onClick={() => setSelected(null)}>
-                Cerrar
-              </button>
+        <div className="form-overlay" role="dialog" aria-modal="true" aria-label="Detalle de cita">
+          <button
+            type="button"
+            className="form-overlay-backdrop"
+            aria-label="Cerrar detalle"
+            onClick={() => setSelected(null)}
+          />
+          <div className="form-overlay-panel">
+            <div className="form-panel">
+              <div className="form-panel-header">
+                <h2 className="form-panel-title">Detalle de cita</h2>
+                <p className="form-panel-desc">{selected.patientName}</p>
+              </div>
+              <div className="form-panel-body space-y-3">
+                <dl className="detail-list">
+                  <div className="detail-row">
+                    <dt>Paciente</dt>
+                    <dd>
+                      {selected.patientName}
+                      <span className="text-[var(--muted)]"> · {selected.patientPhone}</span>
+                    </dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>Servicio</dt>
+                    <dd>{selected.serviceName}</dd>
+                  </div>
+                  <div className="detail-row">
+                    <dt>Fecha y hora</dt>
+                    <dd>
+                      {formatInClinicTimezone(selected.startsAt, {
+                        dateStyle: "full",
+                        timeStyle: "short",
+                      })}{" "}
+                      · {selected.durationMinutes} min
+                    </dd>
+                  </div>
+                  {selected.notes && (
+                    <div className="detail-row">
+                      <dt>Observación</dt>
+                      <dd>{selected.notes}</dd>
+                    </div>
+                  )}
+                  <div className="detail-row">
+                    <dt>Estado</dt>
+                    <dd>
+                      <span className={statusBadge(selected.operationalStatus)}>
+                        {statusLabel(selected.operationalStatus)}
+                      </span>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+              <div className="form-panel-footer">
+                {!selected.hasConsultation && selected.operationalStatus !== "cancelada" && (
+                  <>
+                    <button type="button" className="btn btn-danger" onClick={() => void cancelSelected()}>
+                      Cancelar cita
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => {
+                        openForm(
+                          {
+                            date: toClinicDateInput(selected.startsAt),
+                            time: toClinicTimeInput(selected.startsAt),
+                            durationMinutes: selected.durationMinutes,
+                          },
+                          true,
+                        );
+                        setSelected(selected);
+                      }}
+                    >
+                      Reagendar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={saving}
+                      onClick={() => void createConsultationFromSelected()}
+                    >
+                      Crear consulta
+                    </button>
+                  </>
+                )}
+                {selected.hasConsultation && selected.consultationId && (
+                  <Link href={`/consultas/${selected.consultationId}`} className="btn btn-primary">
+                    Ver consulta
+                  </Link>
+                )}
+                <button type="button" className="btn btn-ghost" onClick={() => setSelected(null)}>
+                  Cerrar
+                </button>
+              </div>
             </div>
           </div>
         </div>
