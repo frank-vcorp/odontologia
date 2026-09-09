@@ -241,7 +241,6 @@ export function AgendaManager() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        patientId: "",
         appointmentId: selected.id,
         fromAppointment: true,
         date: toClinicDateInput(new Date()),

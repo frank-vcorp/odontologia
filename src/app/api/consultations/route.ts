@@ -15,10 +15,18 @@ const serviceLineSchema = z.object({
   priceCents: z.number().int().nonnegative(),
 });
 
+const optionalUuid = z.preprocess(
+  (value) => (value === "" || value === null ? undefined : value),
+  z.string().uuid().optional(),
+);
+
 const createSchema = z
   .object({
-    patientId: z.string().uuid().optional(),
-    appointmentId: z.string().uuid().nullable().optional(),
+    patientId: optionalUuid,
+    appointmentId: z.preprocess(
+      (value) => (value === "" ? null : value),
+      z.string().uuid().nullable().optional(),
+    ),
     date: z.string().min(1),
     time: z.string().min(1),
     clinicalNotes: z.string().nullable().optional(),
