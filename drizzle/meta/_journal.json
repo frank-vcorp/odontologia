@@ -8,6 +8,13 @@
       "when": 1788984336660,
       "tag": "0000_unknown_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788985409718,
+      "tag": "0001_narrow_crystal",
+      "breakpoints": true
     }
   ]
 }

@@ -15,6 +15,8 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Operación",
     items: [
       { href: "/dashboard", label: "Inicio" },
+      { href: "/agenda", label: "Agenda" },
+      { href: "/consultas", label: "Consultas" },
       { href: "/pacientes", label: "Pacientes" },
     ],
   },
@@ -35,7 +37,7 @@ export const NAV_GROUPS: NavGroup[] = [
 
 export const MOBILE_TABS: NavItem[] = [
   { href: "/dashboard", label: "Inicio" },
+  { href: "/agenda", label: "Agenda" },
+  { href: "/consultas", label: "Consultas" },
   { href: "/pacientes", label: "Pacientes" },
-  { href: "/servicios", label: "Servicios" },
-  { href: "/configuracion", label: "Config." },
 ];

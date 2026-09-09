@@ -9,7 +9,7 @@ Sistema web responsivo para la operación diaria de un consultorio dental de un 
 | **Puerto** | `43124` |
 | **Zona horaria** | `America/Mexico_City` |
 | **Documentación** | [`CLINICA_DENTAL_DISCOVERY.md`](CLINICA_DENTAL_DISCOVERY.md) · [`CLINICA_DENTAL_PLAN_VALIDACION.md`](CLINICA_DENTAL_PLAN_VALIDACION.md) |
-| **Estado** | Fase 1 — Núcleo operativo |
+| **Estado** | Fase 2 — Agenda y Consultas |
 
 ---
 

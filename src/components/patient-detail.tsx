@@ -1,6 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { ExpedienteSection } from "@/components/expediente-section";
+import { formatInClinicTimezone } from "@/shared/datetime";
 import { centsToDisplay } from "@/shared/money";
 
 type Patient = {
@@ -28,6 +31,15 @@ export function PatientDetail({ initial }: { initial: Patient }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [consultations, setConsultations] = useState<
+    { id: string; occurredAt: string; services: { serviceName: string }[] }[]
+  >([]);
+
+  useEffect(() => {
+    void fetch(`/api/consultations?patientId=${patient.id}`)
+      .then((r) => r.json())
+      .then((d) => setConsultations(d.consultations ?? []));
+  }, [patient.id]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -78,6 +90,33 @@ export function PatientDetail({ initial }: { initial: Patient }) {
           Los saldos, citas y consultas se habilitan en fases posteriores.
         </p>
       </div>
+
+      <div className="card">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <h2 className="text-base font-semibold m-0">Historial de consultas</h2>
+          <Link href={`/consultas`} className="btn btn-secondary text-sm">
+            Nueva consulta
+          </Link>
+        </div>
+        {consultations.length === 0 ? (
+          <p className="text-sm text-[var(--muted)]">Aún no hay consultas para este paciente.</p>
+        ) : (
+          <ul className="space-y-2">
+            {consultations.slice(0, 5).map((c) => (
+              <li key={c.id} className="text-sm flex flex-wrap gap-2 justify-between">
+                <Link href={`/consultas/${c.id}`}>
+                  {formatInClinicTimezone(c.occurredAt, { dateStyle: "medium", timeStyle: "short" })}
+                </Link>
+                <span className="text-[var(--muted)]">
+                  {c.services.map((s) => s.serviceName).join(", ") || "Consulta"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <ExpedienteSection patientId={patient.id} />
 
       <form onSubmit={handleSave} className="form-panel">
         <div className="form-panel-header">

@@ -21,7 +21,8 @@ ENV TZ=America/Mexico_City
 
 RUN apk add --no-cache wget \
   && addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
+  && adduser --system --uid 1001 nextjs \
+  && mkdir -p /app/uploads && chown nextjs:nodejs /app/uploads
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
