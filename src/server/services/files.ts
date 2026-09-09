@@ -132,5 +132,12 @@ export async function saveUploadedFile(input: {
 
 export async function readFileBuffer(storageKey: string) {
   const fullPath = path.join(uploadRoot(), storageKey);
-  return readFile(fullPath);
+  try {
+    return await readFile(fullPath);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      throw new Error("FILE_NOT_FOUND");
+    }
+    throw error;
+  }
 }

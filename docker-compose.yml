@@ -25,9 +25,13 @@ services:
       SESSION_SECRET: local-dev-secret-change-me
       NODE_ENV: production
       TZ: America/Mexico_City
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   pgdata:
+  uploads:

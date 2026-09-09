@@ -25,6 +25,7 @@ print(json.dumps({
     {'key': 'NODE_ENV', 'value': 'production', 'is_literal': True, 'is_buildtime': False},
     {'key': 'PORT', 'value': '43124', 'is_literal': True, 'is_buildtime': False},
     {'key': 'TZ', 'value': 'America/Mexico_City', 'is_literal': True, 'is_buildtime': False},
+    {'key': 'UPLOAD_DIR', 'value': '/app/uploads', 'is_literal': True, 'is_buildtime': False},
   ]
 }))
 ")"
