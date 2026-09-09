@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: odontologia
+      POSTGRES_PASSWORD: odontologia
+      POSTGRES_DB: odontologia
+      TZ: America/Mexico_City
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odontologia"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "43124:43124"
+    environment:
+      DATABASE_URL: postgresql://odontologia:odontologia@db:5432/odontologia
+      SESSION_SECRET: local-dev-secret-change-me
+      NODE_ENV: production
+      TZ: America/Mexico_City
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

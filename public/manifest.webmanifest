@@ -1,0 +1,10 @@
+{
+  "name": "Clínica Dental",
+  "short_name": "Dental",
+  "description": "Sistema web para consultorio dental",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#e8edf5",
+  "theme_color": "#0A1F44",
+  "lang": "es-MX"
+}
