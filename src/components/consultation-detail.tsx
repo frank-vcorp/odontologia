@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { FileGallery, type GalleryFile } from "@/components/file-gallery";
 import { formatInClinicTimezone } from "@/shared/datetime";
 import { centsToDisplay } from "@/shared/money";
 
@@ -16,12 +17,7 @@ type Consultation = {
   treatments: { id: string; serviceName: string; status: string }[];
 };
 
-type FileRecord = {
-  id: string;
-  originalFilename: string;
-  sourceLabel: string;
-  createdAt: string;
-};
+type FileRecord = GalleryFile;
 
 export function ConsultationDetail({
   consultation: initial,
@@ -116,20 +112,7 @@ export function ConsultationDetail({
               e.target.value = "";
             }}
           />
-          {files.length === 0 ? (
-            <p className="text-sm text-[var(--muted)]">Sin archivos adjuntos.</p>
-          ) : (
-            <ul className="space-y-2">
-              {files.map((f) => (
-                <li key={f.id} className="flex flex-wrap gap-2 items-center text-sm">
-                  <a href={`/api/files/${f.id}`} className="text-[var(--accent-brand)]">
-                    {f.originalFilename}
-                  </a>
-                  <span className="text-[var(--muted)]">{f.sourceLabel}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <FileGallery files={files} emptyMessage="Sin archivos adjuntos." />
         </div>
       </div>
     </div>

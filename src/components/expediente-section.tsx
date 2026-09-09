@@ -1,16 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { formatInClinicTimezone } from "@/shared/datetime";
+import { FileGallery, type GalleryFile } from "@/components/file-gallery";
 
-type FileRecord = {
-  id: string;
-  originalFilename: string;
+type FileRecord = GalleryFile & {
   sourceType: string;
-  sourceLabel: string;
-  sourceHref: string | null;
-  createdAt: string;
 };
 
 export function ExpedienteSection({ patientId }: { patientId: string }) {
@@ -59,35 +53,12 @@ export function ExpedienteSection({ patientId }: { patientId: string }) {
         />
         {loading ? (
           <p className="text-sm text-[var(--muted)]">Cargando expediente…</p>
-        ) : files.length === 0 ? (
-          <p className="text-sm text-[var(--muted)]">Aún no hay archivos en el expediente.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Archivo</th>
-                <th>Procedencia</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {files.map((f) => (
-                <tr key={f.id}>
-                  <td>
-                    <a href={`/api/files/${f.id}`}>{f.originalFilename}</a>
-                  </td>
-                  <td>
-                    {f.sourceHref ? (
-                      <Link href={f.sourceHref}>{f.sourceLabel}</Link>
-                    ) : (
-                      f.sourceLabel
-                    )}
-                  </td>
-                  <td>{formatInClinicTimezone(f.createdAt, { dateStyle: "medium", timeStyle: "short" })}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <FileGallery
+            files={files}
+            showMeta
+            emptyMessage="Aún no hay archivos en el expediente."
+          />
         )}
       </div>
     </div>
