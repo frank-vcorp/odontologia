@@ -2,6 +2,10 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import {
+  ConsultationServicesModal,
+  type ConsultationServiceView,
+} from "@/components/consultation-services-modal";
 import { FileGallery, type GalleryFile } from "@/components/file-gallery";
 import { formatInClinicTimezone } from "@/shared/datetime";
 import { centsToDisplay } from "@/shared/money";
@@ -13,7 +17,7 @@ type Consultation = {
   appointmentId: string | null;
   occurredAt: string;
   clinicalNotes: string | null;
-  services: { id: string; serviceName: string; priceCents: number }[];
+  services: ConsultationServiceView[];
   treatments: { id: string; serviceName: string; status: string }[];
 };
 
@@ -26,14 +30,16 @@ export function ConsultationDetail({
   consultation: Consultation;
   initialFiles?: FileRecord[];
 }) {
+  const [consultation, setConsultation] = useState(initial);
   const [files, setFiles] = useState(initialFiles);
   const [uploading, setUploading] = useState(false);
+  const [showServicesModal, setShowServicesModal] = useState(false);
 
   async function uploadFile(file: File) {
     setUploading(true);
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(`/api/consultations/${initial.id}/files`, { method: "POST", body: form });
+    const res = await fetch(`/api/consultations/${consultation.id}/files`, { method: "POST", body: form });
     setUploading(false);
     if (!res.ok) return;
     const data = await res.json();
@@ -44,23 +50,28 @@ export function ConsultationDetail({
     <div className="space-y-5">
       <div className="card space-y-2">
         <p className="text-sm text-[var(--muted)] m-0">Paciente</p>
-        <Link href={`/pacientes/${initial.patientId}`} className="text-lg font-semibold">
-          {initial.patientName}
+        <Link href={`/pacientes/${consultation.patientId}`} className="text-lg font-semibold">
+          {consultation.patientName}
         </Link>
         <p className="text-sm text-[var(--muted)]">
-          {formatInClinicTimezone(initial.occurredAt, { dateStyle: "full", timeStyle: "short" })}
+          {formatInClinicTimezone(consultation.occurredAt, { dateStyle: "full", timeStyle: "short" })}
         </p>
-        {initial.appointmentId && (
+        {consultation.appointmentId && (
           <Link href="/agenda" className="text-sm">
             Cita de origen
           </Link>
         )}
-        {initial.clinicalNotes && <p className="text-sm whitespace-pre-wrap">{initial.clinicalNotes}</p>}
+        {consultation.clinicalNotes && <p className="text-sm whitespace-pre-wrap">{consultation.clinicalNotes}</p>}
       </div>
 
       <div className="panel">
-        <div className="panel-header">Servicios realizados</div>
-        {initial.services.length === 0 ? (
+        <div className="panel-header flex flex-wrap items-center justify-between gap-2">
+          <span>Servicios realizados</span>
+          <button type="button" className="btn btn-secondary text-sm" onClick={() => setShowServicesModal(true)}>
+            {consultation.services.length === 0 ? "Agregar servicios" : "Editar servicios"}
+          </button>
+        </div>
+        {consultation.services.length === 0 ? (
           <p className="p-4 text-[var(--muted)]">Sin servicios registrados.</p>
         ) : (
           <table>
@@ -71,10 +82,10 @@ export function ConsultationDetail({
               </tr>
             </thead>
             <tbody>
-              {initial.services.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.serviceName}</td>
-                  <td>{centsToDisplay(s.priceCents)}</td>
+              {consultation.services.map((service) => (
+                <tr key={service.id}>
+                  <td>{service.serviceName}</td>
+                  <td>{centsToDisplay(service.priceCents)}</td>
                 </tr>
               ))}
             </tbody>
@@ -82,12 +93,24 @@ export function ConsultationDetail({
         )}
       </div>
 
-      {initial.treatments.length > 0 && (
+      {showServicesModal && (
+        <ConsultationServicesModal
+          consultationId={consultation.id}
+          occurredAt={consultation.occurredAt}
+          clinicalNotes={consultation.clinicalNotes}
+          treatmentIds={consultation.treatments.map((treatment) => treatment.id)}
+          initialServices={consultation.services}
+          onClose={() => setShowServicesModal(false)}
+          onSaved={(services) => setConsultation((current) => ({ ...current, services }))}
+        />
+      )}
+
+      {consultation.treatments.length > 0 && (
         <div className="panel">
           <div className="panel-header">Tratamientos atendidos</div>
           <table>
             <tbody>
-              {initial.treatments.map((t) => (
+              {consultation.treatments.map((t) => (
                 <tr key={t.id}>
                   <td>{t.serviceName}</td>
                   <td>{t.status}</td>
