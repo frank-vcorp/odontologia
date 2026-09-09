@@ -20,9 +20,12 @@ import {
 
 type Appointment = {
   id: string;
+  patientId: string;
   patientName: string;
   patientPhone: string;
+  serviceId: string;
   serviceName: string;
+  treatmentId: string | null;
   startsAt: string;
   durationMinutes: number;
   notes: string | null;
@@ -73,6 +76,11 @@ export function AgendaManager() {
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
   const [rescheduleMode, setRescheduleMode] = useState(false);
+  const [rescheduleLabels, setRescheduleLabels] = useState<{
+    patientName: string;
+    patientPhone: string;
+    serviceName: string;
+  } | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -115,17 +123,27 @@ export function AgendaManager() {
     void load();
   }, [load]);
 
-  const openForm = useCallback((initial: Partial<AppointmentFormValues>, reschedule = false) => {
-    setFormInitial(initial);
-    setFormKey((value) => value + 1);
-    setFormError("");
-    setRescheduleMode(reschedule);
-    setShowForm(true);
-    setSelected(null);
-    requestAnimationFrame(() => {
-      formPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-  }, []);
+  const openForm = useCallback(
+    (
+      initial: Partial<AppointmentFormValues>,
+      reschedule = false,
+      labels?: { patientName: string; patientPhone: string; serviceName: string },
+    ) => {
+      setFormInitial(initial);
+      setFormKey((value) => value + 1);
+      setFormError("");
+      setRescheduleMode(reschedule);
+      setRescheduleLabels(reschedule && labels ? labels : null);
+      setShowForm(true);
+      if (!reschedule) {
+        setSelected(null);
+      }
+      requestAnimationFrame(() => {
+        formPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!mounted) return;
@@ -150,13 +168,39 @@ export function AgendaManager() {
     setSelected(appointment);
   }
 
+  function openRescheduleForm(appointment: Appointment) {
+    setSelected(appointment);
+    openForm(
+      {
+        patientId: appointment.patientId,
+        serviceId: appointment.serviceId,
+        treatmentId: appointment.treatmentId ?? "",
+        date: toClinicDateInput(appointment.startsAt),
+        time: toClinicTimeInput(appointment.startsAt),
+        durationMinutes: appointment.durationMinutes,
+        notes: appointment.notes ?? "",
+      },
+      true,
+      {
+        patientName: appointment.patientName,
+        patientPhone: appointment.patientPhone,
+        serviceName: appointment.serviceName,
+      },
+    );
+  }
+
   async function saveAppointment(values: AppointmentFormValues) {
     setSaving(true);
     setFormError("");
-    const payload = {
+    const createPayload = {
       ...values,
       treatmentId: values.treatmentId || null,
       notes: values.notes || null,
+    };
+    const reschedulePayload = {
+      date: values.date,
+      time: values.time,
+      durationMinutes: values.durationMinutes,
     };
 
     try {
@@ -165,7 +209,7 @@ export function AgendaManager() {
         {
           method: rescheduleMode && selected ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(rescheduleMode && selected ? reschedulePayload : createPayload),
         },
       );
       if (!res.ok) {
@@ -175,6 +219,7 @@ export function AgendaManager() {
       }
       setShowForm(false);
       setRescheduleMode(false);
+      setRescheduleLabels(null);
       setSelected(null);
       await load();
     } finally {
@@ -233,6 +278,7 @@ export function AgendaManager() {
             onClick={() => {
               setShowForm(false);
               setRescheduleMode(false);
+              setRescheduleLabels(null);
             }}
           />
           <div className="form-overlay-panel">
@@ -241,10 +287,13 @@ export function AgendaManager() {
               initial={formInitial}
               saving={saving}
               error={formError}
+              rescheduleMode={rescheduleMode}
+              rescheduleLabels={rescheduleLabels ?? undefined}
               submitLabel={rescheduleMode ? "Reagendar cita" : "Guardar cita"}
               onCancel={() => {
                 setShowForm(false);
                 setRescheduleMode(false);
+                setRescheduleLabels(null);
               }}
               onSubmit={saveAppointment}
             />
@@ -415,17 +464,7 @@ export function AgendaManager() {
                     <button
                       type="button"
                       className="btn btn-secondary"
-                      onClick={() => {
-                        openForm(
-                          {
-                            date: toClinicDateInput(selected.startsAt),
-                            time: toClinicTimeInput(selected.startsAt),
-                            durationMinutes: selected.durationMinutes,
-                          },
-                          true,
-                        );
-                        setSelected(selected);
-                      }}
+                      onClick={() => openRescheduleForm(selected)}
                     >
                       Reagendar
                     </button>

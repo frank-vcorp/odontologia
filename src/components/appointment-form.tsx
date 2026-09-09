@@ -30,6 +30,8 @@ export function AppointmentForm({
   saving,
   error,
   submitLabel = "Guardar cita",
+  rescheduleMode = false,
+  rescheduleLabels,
 }: {
   initial?: Partial<AppointmentFormValues>;
   onSubmit: (values: AppointmentFormValues) => Promise<void>;
@@ -37,6 +39,12 @@ export function AppointmentForm({
   saving: boolean;
   error?: string;
   submitLabel?: string;
+  rescheduleMode?: boolean;
+  rescheduleLabels?: {
+    patientName: string;
+    patientPhone: string;
+    serviceName: string;
+  };
 }) {
   const [form, setForm] = useState({ ...emptyValues, ...initial });
   const [localError, setLocalError] = useState("");
@@ -88,88 +96,111 @@ export function AppointmentForm({
       className="form-panel"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!form.patientId) {
-          setLocalError("Selecciona un paciente de la lista o usa alta rápida.");
-          return;
-        }
-        if (!form.serviceId) {
-          setLocalError("Selecciona un servicio de la lista o usa alta rápida.");
-          return;
+        if (!rescheduleMode) {
+          if (!form.patientId) {
+            setLocalError("Selecciona un paciente de la lista o usa alta rápida.");
+            return;
+          }
+          if (!form.serviceId) {
+            setLocalError("Selecciona un servicio de la lista o usa alta rápida.");
+            return;
+          }
         }
         setLocalError("");
         void onSubmit(form);
       }}
     >
       <div className="form-panel-header">
-        <h2 className="form-panel-title">Nueva cita</h2>
+        <h2 className="form-panel-title">{rescheduleMode ? "Reagendar cita" : "Nueva cita"}</h2>
+        {rescheduleMode && (
+          <p className="form-panel-desc">El paciente y el servicio se conservan. Ajusta fecha, hora o duración.</p>
+        )}
       </div>
       <div className="form-panel-body space-y-4">
         {(localError || error) && <p className="text-[var(--danger)] text-sm">{localError || error}</p>}
 
-        <EntitySearchSelect
-          label="Paciente"
-          required
-          value={form.patientId}
-          onChange={(id) => setForm((f) => ({ ...f, patientId: id, treatmentId: "" }))}
-          fetchUrl="/api/patients"
-          mapItem={(p) => ({
-            id: String(p.id),
-            label: String(p.fullName),
-            sublabel: String(p.phone),
-          })}
-        />
-
-        <div className="card space-y-2">
-          <p className="text-sm font-semibold">Alta rápida paciente</p>
-          <div className="form-grid cols-2">
-            <input
-              placeholder="Nombre completo"
-              value={quickPatient.fullName}
-              onChange={(e) => setQuickPatient({ ...quickPatient, fullName: e.target.value })}
+        {rescheduleMode && rescheduleLabels ? (
+          <dl className="detail-list">
+            <div className="detail-row">
+              <dt>Paciente</dt>
+              <dd>
+                {rescheduleLabels.patientName}
+                <span className="text-[var(--muted)]"> · {rescheduleLabels.patientPhone}</span>
+              </dd>
+            </div>
+            <div className="detail-row">
+              <dt>Servicio</dt>
+              <dd>{rescheduleLabels.serviceName}</dd>
+            </div>
+          </dl>
+        ) : (
+          <>
+            <EntitySearchSelect
+              label="Paciente"
+              required
+              value={form.patientId}
+              onChange={(id) => setForm((f) => ({ ...f, patientId: id, treatmentId: "" }))}
+              fetchUrl="/api/patients"
+              mapItem={(p) => ({
+                id: String(p.id),
+                label: String(p.fullName),
+                sublabel: String(p.phone),
+              })}
             />
-            <input
-              placeholder="Teléfono"
-              value={quickPatient.phone}
-              onChange={(e) => setQuickPatient({ ...quickPatient, phone: e.target.value })}
-            />
-          </div>
-          <button type="button" className="btn btn-secondary text-sm" onClick={() => void quickAddPatient()}>
-            Agregar paciente
-          </button>
-        </div>
 
-        <EntitySearchSelect
-          label="Servicio"
-          required
-          value={form.serviceId}
-          onChange={(id) => setForm((f) => ({ ...f, serviceId: id }))}
-          fetchUrl="/api/services"
-          mapItem={(s) => ({
-            id: String(s.id),
-            label: String(s.name),
-          })}
-        />
+            <div className="card space-y-2">
+              <p className="text-sm font-semibold">Alta rápida paciente</p>
+              <div className="form-grid cols-2">
+                <input
+                  placeholder="Nombre completo"
+                  value={quickPatient.fullName}
+                  onChange={(e) => setQuickPatient({ ...quickPatient, fullName: e.target.value })}
+                />
+                <input
+                  placeholder="Teléfono"
+                  value={quickPatient.phone}
+                  onChange={(e) => setQuickPatient({ ...quickPatient, phone: e.target.value })}
+                />
+              </div>
+              <button type="button" className="btn btn-secondary text-sm" onClick={() => void quickAddPatient()}>
+                Agregar paciente
+              </button>
+            </div>
 
-        <div className="card space-y-2">
-          <p className="text-sm font-semibold">Alta rápida servicio</p>
-          <div className="form-grid cols-2">
-            <input
-              placeholder="Nombre del servicio"
-              value={quickService.name}
-              onChange={(e) => setQuickService({ ...quickService, name: e.target.value })}
+            <EntitySearchSelect
+              label="Servicio"
+              required
+              value={form.serviceId}
+              onChange={(id) => setForm((f) => ({ ...f, serviceId: id }))}
+              fetchUrl="/api/services"
+              mapItem={(s) => ({
+                id: String(s.id),
+                label: String(s.name),
+              })}
             />
-            <input
-              placeholder="Precio sugerido (opcional)"
-              value={quickService.price}
-              onChange={(e) => setQuickService({ ...quickService, price: e.target.value })}
-            />
-          </div>
-          <button type="button" className="btn btn-secondary text-sm" onClick={() => void quickAddService()}>
-            Agregar servicio
-          </button>
-        </div>
 
-        {treatments.length > 0 && (
+            <div className="card space-y-2">
+              <p className="text-sm font-semibold">Alta rápida servicio</p>
+              <div className="form-grid cols-2">
+                <input
+                  placeholder="Nombre del servicio"
+                  value={quickService.name}
+                  onChange={(e) => setQuickService({ ...quickService, name: e.target.value })}
+                />
+                <input
+                  placeholder="Precio sugerido (opcional)"
+                  value={quickService.price}
+                  onChange={(e) => setQuickService({ ...quickService, price: e.target.value })}
+                />
+              </div>
+              <button type="button" className="btn btn-secondary text-sm" onClick={() => void quickAddService()}>
+                Agregar servicio
+              </button>
+            </div>
+          </>
+        )}
+
+        {!rescheduleMode && treatments.length > 0 && (
           <div className="field">
             <label htmlFor="treatmentId">Tratamiento relacionado (opcional)</label>
             <select
@@ -220,14 +251,16 @@ export function AppointmentForm({
               onChange={(e) => setForm((f) => ({ ...f, durationMinutes: Number(e.target.value) }))}
             />
           </div>
-          <div className="field">
-            <label htmlFor="notes">Observación breve</label>
-            <input
-              id="notes"
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            />
-          </div>
+          {!rescheduleMode && (
+            <div className="field">
+              <label htmlFor="notes">Observación breve</label>
+              <input
+                id="notes"
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+          )}
         </div>
       </div>
       <div className="form-panel-footer">
