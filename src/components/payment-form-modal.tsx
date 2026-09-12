@@ -51,6 +51,7 @@ export function PaymentFormModal({
 }) {
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [balance, setBalance] = useState<PatientBalance | null>(null);
+  const [loadingBalance, setLoadingBalance] = useState(true);
   const [paymentMethodId, setPaymentMethodId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(toClinicDateInput(new Date()));
@@ -61,14 +62,18 @@ export function PaymentFormModal({
   const [error, setError] = useState("");
 
   useEffect(() => {
+    setLoadingBalance(true);
     void Promise.all([
       fetch("/api/payment-methods").then((r) => r.json()),
       fetch(`/api/patients/${patientId}/balance`).then((r) => r.json()),
-    ]).then(([methodsData, balanceData]) => {
-      setMethods(methodsData.methods ?? []);
-      if (methodsData.methods?.[0]) setPaymentMethodId(methodsData.methods[0].id);
-      setBalance(balanceData.balance ?? null);
-    });
+    ])
+      .then(([methodsData, balanceData]) => {
+        setMethods(methodsData.methods ?? []);
+        if (methodsData.methods?.[0]) setPaymentMethodId(methodsData.methods[0].id);
+        setBalance(balanceData.balance ?? null);
+      })
+      .catch(() => setError("No se pudieron cargar los saldos del paciente."))
+      .finally(() => setLoadingBalance(false));
   }, [patientId]);
 
   const unpaidServices = useMemo(() => {
@@ -105,17 +110,6 @@ export function PaymentFormModal({
         maxCents: treatment.balanceCents,
         selected: false,
         amount: String(treatment.balanceCents / 100),
-      });
-    }
-
-    if (!consultationId && balance.generalBalanceCents > 0) {
-      items.push({
-        key: "general",
-        targetType: "general",
-        label: "Saldo general (servicios de consulta)",
-        maxCents: balance.generalBalanceCents,
-        selected: false,
-        amount: String(balance.generalBalanceCents / 100),
       });
     }
 
@@ -253,7 +247,9 @@ export function PaymentFormModal({
               <textarea id="payment-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
 
-            {selections.length === 0 ? (
+            {loadingBalance ? (
+              <p className="text-sm text-[var(--muted)]">Cargando saldos…</p>
+            ) : selections.length === 0 ? (
               <p className="text-sm text-[var(--muted)]">No hay saldos pendientes para asignar.</p>
             ) : (
               <div className="space-y-3">

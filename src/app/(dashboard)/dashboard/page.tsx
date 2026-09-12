@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { listTodayAppointments, listUpcomingAppointments } from "@/server/services/appointments";
+import { getNextAppointment, listTodayAppointments } from "@/server/services/appointments";
 import { getDashboardBalanceSummary } from "@/server/services/balances";
 import { formatInClinicTimezone } from "@/shared/datetime";
 import { centsToDisplay } from "@/shared/money";
 
 export default async function DashboardPage() {
-  const [todayAppointments, upcoming, balanceSummary] = await Promise.all([
+  const [todayAppointments, nextAppointment, balanceSummary] = await Promise.all([
     listTodayAppointments(),
-    listUpcomingAppointments(1),
+    getNextAppointment(),
     getDashboardBalanceSummary(),
   ]);
+
+  const todayHasPending = todayAppointments.some((a) => a.operationalStatus === "programada");
 
   return (
     <>
@@ -55,19 +57,31 @@ export default async function DashboardPage() {
 
         <div className="card">
           <h2 className="text-base font-semibold m-0 mb-3">Próxima cita</h2>
-          {upcoming[0] ? (
+          {nextAppointment ? (
             <div className="text-sm space-y-1">
-              <p className="m-0 font-medium">{upcoming[0].patientName}</p>
-              <p className="m-0 text-[var(--muted)]">{upcoming[0].serviceName}</p>
+              <p className="m-0 font-medium">{nextAppointment.patientName}</p>
+              <p className="m-0 text-[var(--muted)]">{nextAppointment.serviceName}</p>
               <p className="m-0">
-                {formatInClinicTimezone(upcoming[0].startsAt, {
+                {formatInClinicTimezone(nextAppointment.startsAt, {
                   dateStyle: "medium",
                   timeStyle: "short",
                 })}
               </p>
             </div>
+          ) : todayAppointments.length > 0 && !todayHasPending ? (
+            <p className="text-sm text-[var(--muted)]">
+              Las citas de hoy ya concluyeron.{" "}
+              <Link href="/agenda?nueva=1" className="text-[var(--accent-brand)]">
+                Programar siguiente
+              </Link>
+            </p>
           ) : (
-            <p className="text-sm text-[var(--muted)]">Sin citas próximas.</p>
+            <p className="text-sm text-[var(--muted)]">
+              Sin citas programadas.{" "}
+              <Link href="/agenda?nueva=1" className="text-[var(--accent-brand)]">
+                Nueva cita
+              </Link>
+            </p>
           )}
         </div>
       </div>

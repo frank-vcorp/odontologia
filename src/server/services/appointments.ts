@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, ne } from "drizzle-orm";
+import { and, eq, gte, isNull, lt, ne } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import {
   appointments,
@@ -222,7 +222,7 @@ export async function cancelAppointment(id: string) {
   return getAppointmentById(id);
 }
 
-export async function listUpcomingAppointments(limit = 5) {
+async function listActionableAppointments(limit?: number): Promise<AppointmentView[]> {
   const db = getDb();
   const now = new Date();
   const rows = await db
@@ -239,12 +239,14 @@ export async function listUpcomingAppointments(limit = 5) {
     .innerJoin(services, eq(appointments.serviceId, services.id))
     .leftJoin(treatments, eq(appointments.treatmentId, treatments.id))
     .leftJoin(consultations, eq(consultations.appointmentId, appointments.id))
-    .where(and(eq(appointments.status, "programada"), gte(appointments.startsAt, now)))
+    .where(and(eq(appointments.status, "programada"), isNull(consultations.id)))
     .orderBy(appointments.startsAt)
-    .limit(limit);
+    .limit(50);
 
-  return rows.map((row) =>
-    mapAppointmentRow({
+  const actionable: AppointmentView[] = [];
+
+  for (const row of rows) {
+    const view = mapAppointmentRow({
       appointment: row.appointment,
       patientName: row.patientName,
       patientPhone: row.patientPhone,
@@ -252,8 +254,23 @@ export async function listUpcomingAppointments(limit = 5) {
       treatmentName: row.treatmentName,
       hasConsultation: Boolean(row.consultationId),
       consultationId: row.consultationId,
-    }),
-  );
+    });
+    if (view.operationalStatus !== "programada") continue;
+    if (endAt(view.startsAt, view.durationMinutes) >= now) actionable.push(view);
+    if (limit !== undefined && actionable.length >= limit) break;
+  }
+
+  return actionable;
+}
+
+export async function listUpcomingAppointments(limit = 5) {
+  return listActionableAppointments(limit);
+}
+
+/** Próxima cita pendiente: programada, sin consulta y aún dentro de su horario o en el futuro. */
+export async function getNextAppointment(): Promise<AppointmentView | null> {
+  const [next] = await listActionableAppointments(1);
+  return next ?? null;
 }
 
 export async function listTodayAppointments() {
