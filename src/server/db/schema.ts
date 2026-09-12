@@ -13,6 +13,16 @@ import type { UserRole } from "@/shared/roles";
 export type AppointmentStatus = "programada" | "cancelada";
 export type TreatmentStatus = "activo" | "terminado" | "cancelado";
 export type FileSourceType = "paciente" | "consulta" | "tratamiento";
+export type BudgetStatus =
+  | "borrador"
+  | "presentado"
+  | "parcialmente_autorizado"
+  | "autorizado"
+  | "rechazado"
+  | "cancelado";
+export type BudgetItemStatus = "pendiente" | "autorizado" | "rechazado";
+export type FinancialMovementType = "ingreso" | "egreso";
+export type PaymentAllocationTarget = "general" | "treatment" | "consultation_service";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -74,7 +84,41 @@ export const paymentMethods = pgTable("payment_methods", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** Stub mínimo para relaciones de consulta; se expande en Fase 3. */
+export const budgets = pgTable("budgets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  patientId: uuid("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  status: text("status").$type<BudgetStatus>().notNull().default("borrador"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const budgetItems = pgTable("budget_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  budgetId: uuid("budget_id")
+    .notNull()
+    .references(() => budgets.id, { onDelete: "cascade" }),
+  serviceId: uuid("service_id").references(() => services.id),
+  serviceName: text("service_name").notNull(),
+  priceCents: integer("price_cents").notNull().default(0),
+  generatesTreatment: boolean("generates_treatment").notNull().default(false),
+  status: text("status").$type<BudgetItemStatus>().notNull().default("pendiente"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const budgetDocuments = pgTable("budget_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  budgetId: uuid("budget_id")
+    .notNull()
+    .references(() => budgets.id, { onDelete: "cascade" }),
+  storageKey: text("storage_key").notNull(),
+  originalFilename: text("original_filename").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const treatments = pgTable("treatments", {
   id: uuid("id").primaryKey().defaultRandom(),
   patientId: uuid("patient_id")
@@ -84,6 +128,9 @@ export const treatments = pgTable("treatments", {
   serviceName: text("service_name").notNull(),
   agreedCostCents: integer("agreed_cost_cents").notNull().default(0),
   status: text("status").$type<TreatmentStatus>().notNull().default("activo"),
+  budgetId: uuid("budget_id").references(() => budgets.id),
+  budgetItemId: uuid("budget_item_id").references(() => budgetItems.id),
+  recommendedFrequencyDays: integer("recommended_frequency_days"),
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -127,6 +174,51 @@ export const consultationServices = pgTable("consultation_services", {
   serviceId: uuid("service_id").references(() => services.id),
   serviceName: text("service_name").notNull(),
   priceCents: integer("price_cents").notNull().default(0),
+  paidCents: integer("paid_cents").notNull().default(0),
+  chargeable: boolean("chargeable").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const payments = pgTable("payments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  patientId: uuid("patient_id")
+    .notNull()
+    .references(() => patients.id),
+  paymentMethodId: uuid("payment_method_id")
+    .notNull()
+    .references(() => paymentMethods.id),
+  amountCents: integer("amount_cents").notNull(),
+  paidAt: timestamp("paid_at", { withTimezone: true }).notNull(),
+  notes: text("notes"),
+  consultationId: uuid("consultation_id").references(() => consultations.id),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const paymentAllocations = pgTable("payment_allocations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  paymentId: uuid("payment_id")
+    .notNull()
+    .references(() => payments.id, { onDelete: "cascade" }),
+  targetType: text("target_type").$type<PaymentAllocationTarget>().notNull(),
+  treatmentId: uuid("treatment_id").references(() => treatments.id),
+  consultationServiceId: uuid("consultation_service_id").references(() => consultationServices.id),
+  amountCents: integer("amount_cents").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const financialMovements = pgTable("financial_movements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: text("type").$type<FinancialMovementType>().notNull(),
+  categoryId: uuid("category_id")
+    .notNull()
+    .references(() => financialCategories.id),
+  amountCents: integer("amount_cents").notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+  description: text("description").notNull(),
+  patientId: uuid("patient_id").references(() => patients.id),
+  paymentId: uuid("payment_id").references(() => payments.id),
+  paymentMethodId: uuid("payment_method_id").references(() => paymentMethods.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -169,3 +261,8 @@ export type Appointment = typeof appointments.$inferSelect;
 export type Consultation = typeof consultations.$inferSelect;
 export type ConsultationService = typeof consultationServices.$inferSelect;
 export type PatientFile = typeof patientFiles.$inferSelect;
+export type Budget = typeof budgets.$inferSelect;
+export type BudgetItem = typeof budgetItems.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type PaymentAllocation = typeof paymentAllocations.$inferSelect;
+export type FinancialMovement = typeof financialMovements.$inferSelect;

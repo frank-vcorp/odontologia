@@ -16,6 +16,7 @@ export type ConsultationServiceInput = {
   serviceId: string;
   serviceName: string;
   priceCents: number;
+  chargeable?: boolean;
 };
 
 export type ConsultationInput = {
@@ -39,6 +40,8 @@ export type ConsultationView = {
     serviceId: string | null;
     serviceName: string;
     priceCents: number;
+    paidCents: number;
+    chargeable: boolean;
   }[];
   treatments: {
     id: string;
@@ -90,6 +93,8 @@ async function loadConsultationView(id: string): Promise<ConsultationView | null
       serviceId: s.serviceId,
       serviceName: s.serviceName,
       priceCents: s.priceCents,
+      paidCents: s.paidCents,
+      chargeable: s.chargeable,
     })),
     treatments: treatmentLinks.map((t) => ({
       id: t.treatmentId,
@@ -140,7 +145,10 @@ export async function createConsultationFromAppointment(appointmentId: string, o
     appointmentId,
     occurredAt: overrides?.occurredAt ?? new Date(),
     clinicalNotes: overrides?.clinicalNotes ?? null,
-    services: initialServices,
+    services: initialServices.map((service) => ({
+      ...service,
+      chargeable: treatmentIds.length === 0,
+    })),
     treatmentIds,
   });
 }
@@ -171,13 +179,32 @@ export async function createConsultation(input: ConsultationInput) {
     })
     .returning();
 
+  let linkedTreatmentServiceIds = new Set<string>();
+  if (input.treatmentIds && input.treatmentIds.length > 0) {
+    const linkedTreatments = await db
+      .select({ id: treatments.id, serviceId: treatments.serviceId })
+      .from(treatments)
+      .where(
+        and(
+          eq(treatments.patientId, input.patientId),
+          inArray(treatments.id, input.treatmentIds),
+        ),
+      );
+    linkedTreatmentServiceIds = new Set(
+      linkedTreatments.map((treatment) => treatment.serviceId).filter(Boolean) as string[],
+    );
+  }
+
   if (input.services.length > 0) {
     await db.insert(consultationServices).values(
-      input.services.map((s) => ({
+      input.services.map((service) => ({
         consultationId: consultation.id,
-        serviceId: s.serviceId,
-        serviceName: s.serviceName,
-        priceCents: s.priceCents,
+        serviceId: service.serviceId,
+        serviceName: service.serviceName,
+        priceCents: service.priceCents,
+        chargeable:
+          service.chargeable ??
+          !(linkedTreatmentServiceIds.size > 0 && linkedTreatmentServiceIds.has(service.serviceId)),
       })),
     );
   }
@@ -228,14 +255,35 @@ export async function updateConsultation(
     })
     .where(eq(consultations.id, id));
 
+  const paidByServiceId = new Map(
+    existing.services.map((service) => [service.serviceId ?? service.id, service.paidCents]),
+  );
+
+  let linkedTreatmentServiceIds = new Set<string>();
+  if (input.treatmentIds && input.treatmentIds.length > 0) {
+    const linkedTreatments = await db
+      .select({ serviceId: treatments.serviceId })
+      .from(treatments)
+      .where(
+        and(eq(treatments.patientId, existing.patientId), inArray(treatments.id, input.treatmentIds)),
+      );
+    linkedTreatmentServiceIds = new Set(
+      linkedTreatments.map((treatment) => treatment.serviceId).filter(Boolean) as string[],
+    );
+  }
+
   await db.delete(consultationServices).where(eq(consultationServices.consultationId, id));
   if (input.services.length > 0) {
     await db.insert(consultationServices).values(
-      input.services.map((s) => ({
+      input.services.map((service) => ({
         consultationId: id,
-        serviceId: s.serviceId,
-        serviceName: s.serviceName,
-        priceCents: s.priceCents,
+        serviceId: service.serviceId,
+        serviceName: service.serviceName,
+        priceCents: service.priceCents,
+        paidCents: paidByServiceId.get(service.serviceId) ?? 0,
+        chargeable:
+          service.chargeable ??
+          !(linkedTreatmentServiceIds.size > 0 && linkedTreatmentServiceIds.has(service.serviceId)),
       })),
     );
   }

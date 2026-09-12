@@ -2,6 +2,26 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/server/db";
 import { paymentMethods } from "@/server/db/schema";
 
+export async function findPaymentMethodByName(name: string) {
+  const db = getDb();
+  const [method] = await db
+    .select()
+    .from(paymentMethods)
+    .where(eq(paymentMethods.name, name.trim()))
+    .limit(1);
+  return method ?? null;
+}
+
+export async function ensureDefaultPaymentMethods() {
+  const defaults = ["Efectivo", "Transferencia", "Tarjeta"];
+  for (const name of defaults) {
+    const existing = await findPaymentMethodByName(name);
+    if (!existing) {
+      await createPaymentMethod(name);
+    }
+  }
+}
+
 export async function listActivePaymentMethods() {
   const db = getDb();
   return db

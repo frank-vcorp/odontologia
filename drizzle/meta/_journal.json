@@ -15,6 +15,13 @@
       "when": 1788985409718,
       "tag": "0001_narrow_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789180349424,
+      "tag": "0002_special_jigsaw",
+      "breakpoints": true
     }
   ]
 }

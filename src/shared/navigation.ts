@@ -18,6 +18,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/agenda", label: "Agenda" },
       { href: "/consultas", label: "Consultas" },
       { href: "/pacientes", label: "Pacientes" },
+      { href: "/presupuestos", label: "Presupuestos" },
     ],
   },
   {
@@ -25,6 +26,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Catálogos",
     items: [
       { href: "/servicios", label: "Servicios" },
+      { href: "/finanzas", label: "Finanzas" },
       { href: "/finanzas/categorias", label: "Categorías financieras" },
     ],
   },
@@ -40,4 +42,5 @@ export const MOBILE_TABS: NavItem[] = [
   { href: "/agenda", label: "Agenda" },
   { href: "/consultas", label: "Consultas" },
   { href: "/pacientes", label: "Pacientes" },
+  { href: "/presupuestos", label: "Presupuestos" },
 ];

@@ -1,4 +1,5 @@
 import "./load-env";
+import { ensureDefaultPaymentMethods } from "@/server/services/payment-methods";
 import { createUser, findUserByEmail } from "@/server/services/users";
 
 const DEFAULT_USERS = [
@@ -32,6 +33,8 @@ async function seed() {
       console.log(`Usuario existente: ${entry.email}`);
     }
   }
+  await ensureDefaultPaymentMethods();
+  console.log("Métodos de pago predeterminados verificados");
   console.log("Seed completado — sistema vacío de datos operativos");
 }
 

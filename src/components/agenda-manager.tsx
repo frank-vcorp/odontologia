@@ -148,7 +148,16 @@ export function AgendaManager() {
   useEffect(() => {
     if (!mounted) return;
     if (searchParams.get("nueva") === "1") {
-      openForm(defaultFormInitial());
+      const initial = defaultFormInitial();
+      const patientId = searchParams.get("patientId");
+      const treatmentId = searchParams.get("treatmentId");
+      const serviceId = searchParams.get("serviceId");
+      const date = searchParams.get("date");
+      if (patientId) initial.patientId = patientId;
+      if (treatmentId) initial.treatmentId = treatmentId;
+      if (serviceId) initial.serviceId = serviceId;
+      if (date) initial.date = date;
+      openForm(initial);
       router.replace("/agenda");
     }
   }, [mounted, openForm, router, searchParams]);

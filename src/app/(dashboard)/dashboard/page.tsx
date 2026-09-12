@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { listTodayAppointments, listUpcomingAppointments } from "@/server/services/appointments";
+import { getDashboardBalanceSummary } from "@/server/services/balances";
 import { formatInClinicTimezone } from "@/shared/datetime";
+import { centsToDisplay } from "@/shared/money";
 
 export default async function DashboardPage() {
-  const [todayAppointments, upcoming] = await Promise.all([
+  const [todayAppointments, upcoming, balanceSummary] = await Promise.all([
     listTodayAppointments(),
     listUpcomingAppointments(1),
+    getDashboardBalanceSummary(),
   ]);
 
   return (
@@ -15,6 +18,16 @@ export default async function DashboardPage() {
         title="Inicio"
         description="Operación diaria del consultorio."
       />
+
+      {balanceSummary.totalPendingCents > 0 && (
+        <div className="card mb-6">
+          <p className="text-sm text-[var(--muted)] m-0">Saldos pendientes (consultorio)</p>
+          <p className="text-lg font-semibold m-0 mt-1">{centsToDisplay(balanceSummary.totalPendingCents)}</p>
+          <p className="text-xs text-[var(--muted)] m-0 mt-1">
+            {balanceSummary.patientsWithBalance} paciente{balanceSummary.patientsWithBalance === 1 ? "" : "s"} con saldo
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3 mb-6">
         <div className="card lg:col-span-2">
@@ -83,6 +96,14 @@ export default async function DashboardPage() {
         <Link href="/pacientes" className="card hover:border-[var(--accent-brand)] transition-colors">
           <h2 className="text-base font-semibold m-0">Pacientes</h2>
           <p className="text-sm text-[var(--muted)] mt-2">Historial y expediente.</p>
+        </Link>
+        <Link href="/presupuestos" className="card hover:border-[var(--accent-brand)] transition-colors">
+          <h2 className="text-base font-semibold m-0">Presupuestos</h2>
+          <p className="text-sm text-[var(--muted)] mt-2">Propuestas y autorizaciones.</p>
+        </Link>
+        <Link href="/finanzas" className="card hover:border-[var(--accent-brand)] transition-colors">
+          <h2 className="text-base font-semibold m-0">Finanzas</h2>
+          <p className="text-sm text-[var(--muted)] mt-2">Movimientos y reportes.</p>
         </Link>
       </div>
     </>
